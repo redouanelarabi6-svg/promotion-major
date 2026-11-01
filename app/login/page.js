@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -34,7 +33,7 @@ export default function LoginPage() {
         if (data.session) {
           router.push("/");
         } else {
-          setMessage("Account created! Please check your email to confirm your account.");
+          setMessage("Account created! Please check your email.");
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -50,6 +49,28 @@ export default function LoginPage() {
       setMessage(error.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setMessage("Please enter your email address first.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
+
+    setLoading(false);
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("Password reset link sent! Please check your email.");
     }
   }
 
@@ -116,6 +137,24 @@ export default function LoginPage() {
                 : "Create Account"}
           </button>
         </form>
+
+        {mode === "login" && (
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={loading}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#4B9B91",
+              cursor: "pointer",
+              marginTop: "18px",
+              padding: 0
+            }}
+          >
+            Forgot Password?
+          </button>
+        )}
 
         {message && (
           <p style={{ marginTop: "20px", color: "#4B9B91", lineHeight: 1.6 }}>

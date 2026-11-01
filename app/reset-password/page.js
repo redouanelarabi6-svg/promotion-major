@@ -1,15 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 export default function ResetPassword() {
   const router = useRouter();
+  const [ready, setReady] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error || !data.session) {
+        setMessage("Recovery session missing. Please request a new reset link.");
+        return;
+      }
+
+      setReady(true);
+    };
+
+    checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (
+        event === "PASSWORD_RECOVERY" ||
+        (event === "SIGNED_IN" && session)
+      ) {
+        setReady(true);
+        setMessage("");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -27,9 +57,7 @@ export default function ResetPassword() {
     setLoading(true);
     setMessage("");
 
-    const { error } = await supabase.auth.updateUser({
-      password: password,
-    });
+    const { error } = await supabase.auth.updateUser({ password });
 
     setLoading(false);
 
@@ -39,10 +67,7 @@ export default function ResetPassword() {
     }
 
     setMessage("Password updated successfully!");
-
-    setTimeout(() => {
-      router.push("/login");
-    }, 2000);
+    setTimeout(() => router.push("/login"), 2000);
   }
 
   return (
@@ -61,40 +86,38 @@ export default function ResetPassword() {
         width: "100%",
         maxWidth: "420px"
       }}>
-        <h1 style={{ color: "#142B45", marginBottom: "10px" }}>
-          Reset Password
-        </h1>
+        <h1 style={{ color: "#142B45" }}>Reset Password</h1>
 
-        <p style={{ color: "#555", marginBottom: "25px" }}>
-          Enter your new password.
-        </p>
+        {!ready ? (
+          <p>{message || "Checking recovery session..."}</p>
+        ) : (
+          <>
+            <p>Enter your new password.</p>
 
-        <input
-          type="password"
-          placeholder="New password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={inputStyle}
-        />
+            <input
+              type="password"
+              placeholder="New password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={inputStyle}
+            />
 
-        <input
-          type="password"
-          placeholder="Confirm new password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          style={inputStyle}
-        />
+            <input
+              type="password"
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              style={inputStyle}
+            />
 
-        <button type="submit" disabled={loading} style={buttonStyle}>
-          {loading ? "Updating..." : "Update Password"}
-        </button>
+            <button type="submit" disabled={loading} style={buttonStyle}>
+              {loading ? "Updating..." : "Update Password"}
+            </button>
 
-        {message && (
-          <p style={{ marginTop: "18px", color: "#142B45" }}>
-            {message}
-          </p>
+            {message && <p>{message}</p>}
+          </>
         )}
       </form>
     </main>
